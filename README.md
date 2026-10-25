@@ -198,6 +198,69 @@ The kernel only talks to the hardware through the small port interface in `port/
 
 All objects are allocated by the caller (static or global); the kernel never allocates memory. Functions return `RTOS_OK` (0) or a negative `rtos_status_t`.
 
+### C
+
+```c
+#include "rtos/rtos.h"
+
+static rtos_thread_t worker;
+static uint32_t worker_stack[256] __attribute__((aligned(8)));
+static rtos_mutex_t lock;
+static rtos_sem_t   ready;
+
+static void worker_entry(void *arg)
+{
+    uint32_t last = rtos_ticks();
+    for (;;) {
+        rtos_sleep_until(&last, 10);          /* drift-free 100 Hz loop */
+        if (rtos_mutex_lock(&lock, 5) == RTOS_OK) {
+            /* ... touch shared state ... */
+            rtos_mutex_unlock(&lock);
+        }
+    }
+}
+
+void TIMER0A_IRQHandler(void)
+{
+    /* ... */
+    rtos_sem_give(&ready);                    /* ISR safe */
+}
+
+int main(void)
+{
+    rtos_init();
+    rtos_mutex_init(&lock);
+    rtos_sem_init(&ready, 0, 16);
+    rtos_thread_create(&worker, "worker", worker_entry, NULL, 5, worker_stack, 256);
+    rtos_start();                             /* never returns */
+}
+```
+
+### C++
+
+```cpp
+#include "rtos/rtos.hpp"
+
+rtos::Thread<256>               worker;
+rtos::Mutex                     lock;
+rtos::Queue<Message, 8>         inbox;
+rtos::RingBuffer<Sample, 64>    samples;      // lock-free, ISR -> thread
+
+void worker_entry(void *) {
+    Message m;
+    while (inbox.recv(m, rtos::ms_to_ticks(100)) == RTOS_OK) {
+        rtos::LockGuard guard(lock);
+        handle(m);
+    }
+}
+
+int main() {
+    rtos_init();
+    worker.start("worker", worker_entry, nullptr, 5);
+    rtos_start();
+}
+```
+
 ### Reference
 
 | Function | Context | Description |
