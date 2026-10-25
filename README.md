@@ -1,6 +1,6 @@
 # BareMetal-RTOS
 
-**A lightweight, preemptive, multi-threaded real-time kernel for ARM Cortex-M, written from scratch in C, C++ and ARM assembly.**
+**A lightweight, multi-threaded real-time kernel for ARM Cortex-M, written from scratch in C, C++ and ARM assembly.**
 
 BareMetal-RTOS runs directly on the hardware with no operating system underneath. It schedules concurrent threads under strict priorities, switches context in the `PendSV` exception, and moves sensor telemetry from interrupt handlers to processing threads through lock-free ring buffers: the kind of workload found in robots, drones and industrial controllers.
 
@@ -9,25 +9,6 @@ The whole project builds and runs **entirely in software**: the firmware is comp
 ![Language](https://img.shields.io/badge/language-C%20%7C%20C%2B%2B%20%7C%20ARM%20asm-blue)
 ![Target](https://img.shields.io/badge/target-ARM%20Cortex--M3-informational)
 ![License](https://img.shields.io/badge/license-MIT-green)
-
----
-
-## Table of contents
-
-- [Highlights](#highlights)
-- [Demo](#demo)
-- [Quick start](#quick-start)
-- [Architecture](#architecture)
-- [Kernel API](#kernel-api)
-- [How it works](#how-it-works)
-- [Testing](#testing)
-- [Footprint](#footprint)
-- [Debugging with GDB](#debugging-with-gdb)
-- [Running on real hardware](#running-on-real-hardware)
-- [Configuration](#configuration)
-- [Project layout](#project-layout)
-- [Design limits](#design-limits)
-- [License](#license)
 
 ---
 
@@ -216,69 +197,6 @@ The kernel only talks to the hardware through the small port interface in `port/
 ## Kernel API
 
 All objects are allocated by the caller (static or global); the kernel never allocates memory. Functions return `RTOS_OK` (0) or a negative `rtos_status_t`.
-
-### C
-
-```c
-#include "rtos/rtos.h"
-
-static rtos_thread_t worker;
-static uint32_t worker_stack[256] __attribute__((aligned(8)));
-static rtos_mutex_t lock;
-static rtos_sem_t   ready;
-
-static void worker_entry(void *arg)
-{
-    uint32_t last = rtos_ticks();
-    for (;;) {
-        rtos_sleep_until(&last, 10);          /* drift-free 100 Hz loop */
-        if (rtos_mutex_lock(&lock, 5) == RTOS_OK) {
-            /* ... touch shared state ... */
-            rtos_mutex_unlock(&lock);
-        }
-    }
-}
-
-void TIMER0A_IRQHandler(void)
-{
-    /* ... */
-    rtos_sem_give(&ready);                    /* ISR safe */
-}
-
-int main(void)
-{
-    rtos_init();
-    rtos_mutex_init(&lock);
-    rtos_sem_init(&ready, 0, 16);
-    rtos_thread_create(&worker, "worker", worker_entry, NULL, 5, worker_stack, 256);
-    rtos_start();                             /* never returns */
-}
-```
-
-### C++
-
-```cpp
-#include "rtos/rtos.hpp"
-
-rtos::Thread<256>               worker;
-rtos::Mutex                     lock;
-rtos::Queue<Message, 8>         inbox;
-rtos::RingBuffer<Sample, 64>    samples;      // lock-free, ISR -> thread
-
-void worker_entry(void *) {
-    Message m;
-    while (inbox.recv(m, rtos::ms_to_ticks(100)) == RTOS_OK) {
-        rtos::LockGuard guard(lock);
-        handle(m);
-    }
-}
-
-int main() {
-    rtos_init();
-    worker.start("worker", worker_entry, nullptr, 5);
-    rtos_start();
-}
-```
 
 ### Reference
 
@@ -495,55 +413,6 @@ Defaults live in `kernel/include/rtos/config.h`; override any of them with `-D` 
 | `RTOS_IDLE_STACK_WORDS` | 96 | idle thread stack |
 
 Override `rtos_panic_hook(const char *msg)` to report fatal errors (stack overflow, blocking with interrupts disabled, exiting while holding a mutex).
-
----
-
-## Project layout
-
-```
-BareMetal-RTOS/
-├── kernel/
-│   ├── include/rtos/
-│   │   ├── rtos.h            public C API
-│   │   ├── rtos.hpp          C++ wrappers
-│   │   ├── ringbuf.h         lock-free SPSC ring buffer (header-only, portable)
-│   │   └── config.h          compile-time configuration
-│   └── src/
-│       ├── sched.c           scheduler, threads, tick, delays
-│       ├── sync.c            mutex (priority inheritance), semaphore, queue
-│       └── kernel_internal.h
-├── port/cortex-m3/
-│   ├── context_switch.S      PendSV handler and first-thread start (ARM assembly)
-│   ├── port.c                stack frames, SysTick, cycle counter
-│   ├── rtos_port.h           port interface (PRIMASK, IPSR, PendSV)
-│   └── cm3_regs.h            core registers (CMSIS-style names)
-├── board/lm3s6965/
-│   ├── startup.c             vector table, reset handler, fault reporting
-│   ├── board.c / board.h     UART console, printf, timers, semihosting exit
-│   └── lm3s6965.ld           linker script
-├── app/telemetry/            C++ demo: sensor ISR → ring buffer → threads
-├── tests/
-│   ├── target/test_kernel.c  on-target kernel test suite
-│   └── host/test_ringbuf.cpp host ring buffer tests
-├── cmake/arm-none-eabi.cmake toolchain file
-├── scripts/                  build.sh, run_qemu.sh
-├── .github/workflows/ci.yml  CI: build, test in QEMU, TSan, -O0/-O3/-Os
-├── CMakeLists.txt
-├── CHANGELOG.md
-└── LICENSE
-```
-
----
-
-## Design limits
-
-These are deliberate choices to keep the kernel small and predictable:
-
-* Mutexes are not recursive (relocking returns `RTOS_ERR_STATE`).
-* Thread priorities are fixed at creation (apart from inheritance boosts).
-* The Cortex-M3 port saves integer registers only; threads must not use an FPU without extending the port to stack `s16-s31` lazily.
-* Critical sections use `PRIMASK`, so every interrupt is held off for the length of a kernel operation (a few dozen instructions). A `BASEPRI`-based variant would let the highest-priority interrupts bypass the kernel entirely.
-* The ring buffer is strictly single-producer / single-consumer.
 
 ---
 
