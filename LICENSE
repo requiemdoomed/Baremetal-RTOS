@@ -1,21 +1,7 @@
-MIT License
+Software Licensing and Redistribution Notice
 
-Copyright (c) 2026 Swayam Shakya
+No open-source software license has been granted with this research release. All copyright and usage permissions remain with the authors and their institution(s) until an explicit license is approved and applied. Publication or hosting on GitHub or any public platform does not grant permission for unrestricted copying, modification, or redistribution.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Before enabling public reuse or commercial application, the authors will determine whether an open-source license (such as MIT, BSD-3-Clause, or Apache-2.0) is authorized. Any external datasets, pretrained model weights, software libraries, and third-party code snippets integrated into or referenced by this project remain subject to their respective original licenses.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+If an open-source license is officially approved, this notice and related project metadata (including CITATION.cff) will be updated accordingly.
